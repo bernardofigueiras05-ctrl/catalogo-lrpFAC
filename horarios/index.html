@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5cab">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Porto ao Vivo">
+<title>Porto ao Vivo</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #15202b;
+    --muted: #5b6875;
+    --line: #e2e7ed;
+    --accent: #0b5cab;
+    --live: #0a8f4a;
+    --warn: #b45309;
+    --danger: #c0262d;
+    --chip: #eef2f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1418;
+      --card: #172027;
+      --text: #e8edf2;
+      --muted: #94a3b0;
+      --line: #263340;
+      --accent: #5aa7f0;
+      --live: #3ccf7f;
+      --warn: #f0a24a;
+      --danger: #f06a6f;
+      --chip: #1f2b34;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--accent); color: #fff;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  }
+  header h1 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; }
+  header h1 button { margin-left: auto; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 12px 16px 40px; }
+  button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 10px;
+    padding: 8px 12px; background: var(--chip); color: var(--text);
+  }
+  header button { background: rgba(255,255,255,.18); color: #fff; padding: 6px 10px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .search { display: flex; gap: 8px; margin-top: 10px; }
+  .search input {
+    flex: 1; min-width: 0; font: inherit; padding: 10px 12px;
+    border-radius: 10px; border: 0; background: #fff; color: #15202b;
+  }
+  .filters { display: flex; gap: 6px; margin: 12px 0; flex-wrap: wrap; }
+  .filters button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 8px; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px; display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  }
+  .card .grow { flex: 1; min-width: 0; }
+  .card .title { font-weight: 600; }
+  .card .sub { color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icon {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    display: grid; place-items: center; font-weight: 700; font-size: .8rem; color: #fff;
+  }
+  .icon.metro { background: #0b5cab; }
+  .icon.bus { background: #c8102e; }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .badge {
+    display: inline-block; min-width: 2.2em; text-align: center; padding: 1px 6px;
+    border-radius: 6px; font-size: .75rem; font-weight: 700;
+  }
+  .dep .badge { font-size: .95rem; min-width: 3em; padding: 4px 6px; }
+  .time { text-align: right; flex: none; }
+  .time .min { font-size: 1.25rem; font-weight: 700; }
+  .time .clock { font-size: .8rem; color: var(--muted); }
+  .rt { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; color: var(--live); }
+  .rt::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+  .sched { font-size: .75rem; color: var(--muted); }
+  .late { color: var(--warn); }
+  .cancel { color: var(--danger); text-decoration: line-through; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .star { background: transparent; font-size: 1.3rem; padding: 4px 6px; color: var(--muted); }
+  .star[aria-pressed="true"] { color: #f2b705; }
+  .msg { color: var(--muted); text-align: center; padding: 24px 8px; }
+  .err { color: var(--danger); }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .toolbar .grow { flex: 1; min-width: 0; }
+  .stopname { font-size: 1.3rem; font-weight: 700; margin: 0; }
+  .updated { font-size: .8rem; color: var(--muted); }
+  dialog { border: 0; border-radius: 16px; background: var(--card); color: var(--text); width: min(92vw, 480px); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
+  dialog input { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .hint { font-size: .8rem; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚇🚌 Porto ao Vivo <button id="btnSettings" aria-label="Definições">⚙️</button></h1>
+  <form class="search" id="searchForm" role="search">
+    <input id="q" type="search" placeholder="Procurar paragem ou estação (ex.: Trindade, Bolhão)" autocomplete="off" enterkeyhint="search">
+    <button type="button" id="btnNear" aria-label="Paragens perto de mim">📍</button>
+  </form>
+</header>
+
+<main class="wrap">
+  <div class="filters" role="group" aria-label="Filtrar por operador">
+    <button data-f="all" aria-pressed="true">Todos</button>
+    <button data-f="metro" aria-pressed="false">Metro do Porto</button>
+    <button data-f="bus" aria-pressed="false">STCP</button>
+  </div>
+
+  <!-- Página inicial / resultados -->
+  <section id="home">
+    <div id="favSection">
+      <h2>Favoritos</h2>
+      <div class="list" id="favList"></div>
+    </div>
+    <div id="resultsSection" hidden>
+      <h2 id="resultsTitle">Resultados</h2>
+      <div class="list" id="results"></div>
+    </div>
+  </section>
+
+  <!-- Partidas de uma paragem -->
+  <section id="stopView" hidden>
+    <div class="toolbar">
+      <button id="btnBack" aria-label="Voltar">←</button>
+      <div class="grow">
+        <p class="stopname" id="stopTitle"></p>
+        <div class="updated" id="updated"></div>
+      </div>
+      <button class="star" id="btnFav" aria-pressed="false" aria-label="Favorito">★</button>
+      <button id="btnRefresh" aria-label="Atualizar">⟳</button>
+    </div>
+    <div class="list" id="departures"></div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h3 style="margin-top:0">Definições</h3>
+    <label for="cfgEndpoint">Servidor de dados (OpenTripPlanner GraphQL)</label>
+    <input id="cfgEndpoint" type="url">
+    <label for="cfgProxy">Proxy CORS (opcional)</label>
+    <input id="cfgProxy" type="text" placeholder="ex.: https://corsproxy.io/?url=">
+    <p class="hint">Os dados vêm da plataforma aberta Porto Digital, que junta o Metro do Porto e a STCP com tempo real.
+      Se o browser bloquear o pedido (CORS), indica aqui um proxy — o endereço do servidor é acrescentado no fim.</p>
+    <div class="row">
+      <button value="reset" id="btnReset">Repor</button>
+      <button value="ok" style="background:var(--accent);color:#fff">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+
+const DEFAULT_ENDPOINT = "https://otp.services.porto.digital/otp/routers/default/index/graphql";
+const REFRESH_MS = 30000;
+// Cores oficiais das linhas do Metro, caso o feed não as traga
+const METRO_COLORS = { A: "0072bc", B: "e2001a", C: "8bc53f", D: "ffd200", E: "7a5ba6", F: "f58220", G: "a5682a", H: "00a0b0" };
+
+// ---------- armazenamento local (tolerante a falhas) ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let cfg = store.get("pav.cfg", { endpoint: DEFAULT_ENDPOINT, proxy: "" });
+let favs = store.get("pav.favs", []);   // [{key, name, mode, ids}]
+let filter = store.get("pav.filter", "all");
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- API ----------
+async function gql(query, variables) {
+  const url = (cfg.proxy ? cfg.proxy + encodeURIComponent(cfg.endpoint) : cfg.endpoint);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) throw new Error("Servidor respondeu " + res.status);
+  const json = await res.json();
+  if (json.errors && !json.data) throw new Error(json.errors.map((e) => e.message).join("; "));
+  return json.data;
+}
+
+const ROUTE_FIELDS = "shortName longName mode color textColor agency { name }";
+
+const Q_SEARCH = `query($q: String!) {
+  stops(name: $q) { gtfsId name code lat lon routes { ${ROUTE_FIELDS} } }
+}`;
+
+const Q_NEAR = `query($lat: Float!, $lon: Float!) {
+  nearest(lat: $lat, lon: $lon, maxDistance: 800, maxResults: 40, first: 40, filterByPlaceTypes: [STOP]) {
+    edges { node { distance place { ... on Stop { gtfsId name code lat lon routes { ${ROUTE_FIELDS} } } } } }
+  }
+}`;
+
+const Q_DEPS = `query($ids: [String]) {
+  stops(ids: $ids) {
+    gtfsId name code platformCode
+    stoptimesWithoutPatterns(numberOfDepartures: 12, omitNonPickups: true) {
+      scheduledDeparture realtimeDeparture departureDelay realtime realtimeState serviceDay headsign
+      trip { gtfsId tripHeadsign route { ${ROUTE_FIELDS} } }
+    }
+  }
+}`;
+
+// ---------- classificação metro / autocarro ----------
+function routeKind(r) {
+  const agency = (r.agency && r.agency.name || "").toLowerCase();
+  if (agency.includes("metro")) return "metro";
+  if (agency.includes("stcp")) return "bus";
+  return r.mode === "BUS" ? "bus" : "metro";
+}
+function stopKind(stop) {
+  const kinds = new Set((stop.routes || []).map(routeKind));
+  return kinds.has("bus") && !kinds.has("metro") ? "bus" : kinds.has("metro") ? "metro" : "bus";
+}
+
+function lineColors(r) {
+  let bg = r.color;
+  if (!bg && routeKind(r) === "metro") bg = METRO_COLORS[(r.shortName || "").toUpperCase()];
+  if (!bg) bg = routeKind(r) === "metro" ? "0b5cab" : "c8102e";
+  let fg = r.textColor;
+  if (!fg) {
+    const n = parseInt(bg, 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    fg = lum > 0.6 ? "111111" : "ffffff";
+  }
+  return `background:#${bg};color:#${fg}`;
+}
+function badge(r) { return `<span class="badge" style="${lineColors(r)}">${esc(r.shortName || r.longName || "?")}</span>`; }
+
+// ---------- agrupar plataformas/sentidos da mesma paragem ----------
+function dist(a, b) {
+  const R = 6371000, toRad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toRad, dLon = (b.lon - a.lon) * toRad;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+function groupStops(stops) {
+  const groups = [];
+  for (const s of stops) {
+    const kind = stopKind(s);
+    const g = groups.find((g) => g.kind === kind && norm(g.name) === norm(s.name) && dist(g, s) < 300);
+    if (g) {
+      g.ids.push(s.gtfsId);
+      if (s.code && !g.codes.includes(s.code)) g.codes.push(s.code);
+      for (const r of s.routes || []) if (!g.routes.some((x) => x.shortName === r.shortName)) g.routes.push(r);
+      if (s.distance != null) g.distance = Math.min(g.distance ?? Infinity, s.distance);
+    } else {
+      groups.push({ name: s.name, kind, lat: s.lat, lon: s.lon, ids: [s.gtfsId], codes: s.code ? [s.code] : [],
+                    routes: [...(s.routes || [])], distance: s.distance });
+    }
+  }
+  for (const g of groups) {
+    g.key = g.kind + ":" + g.ids.slice().sort().join(",");
+    g.routes.sort((a, b) => String(a.shortName).localeCompare(String(b.shortName), "pt", { numeric: true }));
+  }
+  return groups;
+}
+
+// ---------- render ----------
+function stopCard(g) {
+  const isFav = favs.some((f) => f.key === g.key);
+  const meta = [g.kind === "metro" ? "Metro do Porto" : "STCP"];
+  if (g.codes.length) meta.push(g.codes.join(" · "));
+  if (g.distance != null) meta.push(Math.round(g.distance) + " m");
+  const el = document.createElement("button");
+  el.className = "card";
+  el.innerHTML = `
+    <div class="icon ${g.kind}">${g.kind === "metro" ? "M" : "🚌"}</div>
+    <div class="grow">
+      <div class="title">${esc(g.name)} ${isFav ? "★" : ""}</div>
+      <div class="sub">${esc(meta.join(" — "))}</div>
+      <div class="badges">${(g.routes || []).slice(0, 14).map(badge).join("")}</div>
+    </div>`;
+  el.addEventListener("click", () => openStop(g));
+  return el;
+}
+
+function renderList(container, groups, emptyMsg) {
+  container.replaceChildren();
+  const shown = groups.filter((g) => filter === "all" || g.kind === filter);
+  if (!shown.length) { container.innerHTML = `<div class="msg">${emptyMsg}</div>`; return; }
+  shown.forEach((g) => container.appendChild(stopCard(g)));
+}
+
+function renderFavs() {
+  renderList($("#favList"), favs, "Ainda sem favoritos. Procura uma paragem e toca na ★ para a guardar aqui.");
+}
+
+// ---------- pesquisa ----------
+let searchSeq = 0, searchTimer;
+async function search(q) {
+  q = q.trim();
+  if (q.length < 2) { $("#resultsSection").hidden = true; return; }
+  const seq = ++searchSeq;
+  $("#resultsSection").hidden = false;
+  $("#resultsTitle").textContent = `Resultados para “${q}”`;
+  $("#results").innerHTML = `<div class="msg">A procurar…</div>`;
+  try {
+    const data = await gql(Q_SEARCH, { q });
+    if (seq !== searchSeq) return;
+    renderList($("#results"), groupStops(data.stops || []).slice(0, 40), "Nenhuma paragem encontrada.");
+  } catch (e) {
+    if (seq === searchSeq) showError($("#results"), e);
+  }
+}
+
+function nearMe() {
+  if (!navigator.geolocation) { alert("Este dispositivo não suporta localização."); return; }
+  $("#q").value = "";
+  $("#resultsSection").hidden = false;
+  $("#resultsTitle").textContent = "Perto de mim";
+  $("#results").innerHTML = `<div class="msg">A obter a tua localização…</div>`;
+  const seq = ++searchSeq;
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const data = await gql(Q_NEAR, { lat: pos.coords.latitude, lon: pos.coords.longitude });
+      if (seq !== searchSeq) return;
+      const stops = (data.nearest && data.nearest.edges || [])
+        .map((e) => e.node.place && { ...e.node.place, distance: e.node.distance })
+        .filter((s) => s && s.gtfsId);
+      const groups = groupStops(stops).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+      renderList($("#results"), groups, "Não há paragens num raio de 800 m.");
+    } catch (e) { if (seq === searchSeq) showError($("#results"), e); }
+  }, (err) => {
+    $("#results").innerHTML = `<div class="msg err">Não foi possível obter a localização (${esc(err.message)}).</div>`;
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+}
+
+function showError(container, e) {
+  const cors = e instanceof TypeError;
+  container.innerHTML = `<div class="msg err">Erro ao carregar dados: ${esc(e.message)}.<br>
+    ${cors ? "O pedido foi bloqueado pela rede ou pelo browser (CORS). Experimenta definir um proxy em ⚙️ Definições." : ""}</div>`;
+}
+
+// ---------- partidas ----------
+let current = null, refreshTimer = null, lastDeps = null, lastUpdate = 0;
+
+function openStop(g, push = true) {
+  current = g;
+  $("#home").hidden = true;
+  $("#stopView").hidden = false;
+  $("#stopTitle").textContent = g.name;
+  $("#departures").innerHTML = `<div class="msg">A carregar partidas…</div>`;
+  $("#updated").textContent = g.kind === "metro" ? "Metro do Porto" : "STCP";
+  updateFavBtn();
+  if (push) history.pushState({ stop: g }, "", "#" + encodeURIComponent(g.key));
+  window.scrollTo(0, 0);
+  loadDeps();
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadDeps, REFRESH_MS);
+}
+
+function closeStop() {
+  current = null;
+  clearInterval(refreshTimer);
+  $("#stopView").hidden = true;
+  $("#home").hidden = false;
+  renderFavs();
+}
+
+async function loadDeps() {
+  if (!current) return;
+  const g = current;
+  $("#btnRefresh").disabled = true;
+  try {
+    const data = await gql(Q_DEPS, { ids: g.ids });
+    if (current !== g) return;
+    const deps = [];
+    for (const s of data.stops || []) {
+      if (!s) continue;
+      for (const st of s.stoptimesWithoutPatterns || []) {
+        const r = st.trip && st.trip.route || {};
+        const sched = (st.serviceDay + st.scheduledDeparture) * 1000;
+        const real = (st.serviceDay + (st.realtime ? st.realtimeDeparture : st.scheduledDeparture)) * 1000;
+        deps.push({
+          route: r, when: real, sched, realtime: !!st.realtime, delay: st.departureDelay || 0,
+          canceled: st.realtimeState === "CANCELED",
+          headsign: st.headsign || (st.trip && st.trip.tripHeadsign) || r.longName || "",
+          platform: s.platformCode || "",
+        });
+      }
+    }
+    deps.sort((a, b) => a.when - b.when);
+    lastDeps = deps;
+    lastUpdate = Date.now();
+    renderDeps();
+  } catch (e) {
+    if (current === g) showError($("#departures"), e);
+  } finally {
+    $("#btnRefresh").disabled = false;
+  }
+}
+
+function fmtClock(ms) { return new Date(ms).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }); }
+
+function renderDeps() {
+  if (!lastDeps) return;
+  const now = Date.now();
+  const list = lastDeps.filter((d) => d.when > now - 30000).slice(0, 30);
+  const box = $("#departures");
+  if (!list.length) { box.innerHTML = `<div class="msg">Sem partidas nas próximas horas.</div>`; }
+  else {
+    box.innerHTML = list.map((d) => {
+      const mins = Math.max(0, Math.round((d.when - now) / 60000));
+      const big = d.canceled ? "—" : mins === 0 ? "agora" : mins < 60 ? mins + " min" : fmtClock(d.when);
+      let status;
+      if (d.canceled) status = `<span class="sched cancel">Cancelado</span>`;
+      else if (d.realtime) {
+        const late = Math.round(d.delay / 60);
+        status = `<span class="rt">tempo real</span>${late >= 2 ? ` <span class="sched late">+${late} min</span>` : ""}`;
+      } else status = `<span class="sched">horário</span>`;
+      return `<div class="card dep">
+        ${badge(d.route)}
+        <div class="grow">
+          <div class="title">${esc(d.headsign)}</div>
+          <div class="sub">${status}${d.platform ? ` · Cais ${esc(d.platform)}` : ""}</div>
+        </div>
+        <div class="time">
+          <div class="min ${d.canceled ? "cancel" : ""}">${big}</div>
+          <div class="clock">${fmtClock(d.when)}${d.realtime && d.sched !== d.when ? ` <s>${fmtClock(d.sched)}</s>` : ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+  const ago = Math.round((now - lastUpdate) / 1000);
+  $("#updated").textContent = `${current && current.kind === "metro" ? "Metro do Porto" : "STCP"} · atualizado há ${ago < 5 ? "instantes" : ago + " s"}`;
+}
+setInterval(() => { if (current) renderDeps(); }, 5000);
+
+// ---------- favoritos ----------
+function updateFavBtn() {
+  const on = !!current && favs.some((f) => f.key === current.key);
+  $("#btnFav").setAttribute("aria-pressed", on);
+}
+$("#btnFav").addEventListener("click", () => {
+  if (!current) return;
+  const i = favs.findIndex((f) => f.key === current.key);
+  if (i >= 0) favs.splice(i, 1);
+  else favs.push({ key: current.key, name: current.name, kind: current.kind, ids: current.ids, codes: current.codes, routes: current.routes.map((r) => ({ shortName: r.shortName, color: r.color, textColor: r.textColor, mode: r.mode, agency: r.agency })) });
+  store.set("pav.favs", favs);
+  updateFavBtn();
+});
+
+// ---------- eventos ----------
+$("#q").addEventListener("input", (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search(e.target.value), 350); });
+$("#searchForm").addEventListener("submit", (e) => {
+  e.preventDefault(); clearTimeout(searchTimer);
+  if (current) history.back();
+  search($("#q").value); $("#q").blur();
+});
+$("#q").addEventListener("focus", () => { if (current) history.back(); });
+$("#btnNear").addEventListener("click", () => { if (current) history.back(); nearMe(); });
+$("#btnBack").addEventListener("click", () => history.back());
+$("#btnRefresh").addEventListener("click", loadDeps);
+document.querySelectorAll(".filters button").forEach((b) => {
+  b.setAttribute("aria-pressed", b.dataset.f === filter);
+  b.addEventListener("click", () => {
+    filter = b.dataset.f; store.set("pav.filter", filter);
+    document.querySelectorAll(".filters button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    renderFavs();
+    const q = $("#q").value; if (q.trim().length >= 2) search(q);
+  });
+});
+window.addEventListener("popstate", (e) => {
+  if (e.state && e.state.stop) openStop(e.state.stop, false); else closeStop();
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden && current) loadDeps(); });
+
+// definições
+$("#btnSettings").addEventListener("click", () => {
+  $("#cfgEndpoint").value = cfg.endpoint; $("#cfgProxy").value = cfg.proxy;
+  $("#settings").showModal();
+});
+$("#settings").addEventListener("close", () => {
+  const v = $("#settings").returnValue;
+  if (v === "reset") cfg = { endpoint: DEFAULT_ENDPOINT, proxy: "" };
+  else if (v === "ok") cfg = { endpoint: $("#cfgEndpoint").value.trim() || DEFAULT_ENDPOINT, proxy: $("#cfgProxy").value.trim() };
+  else return;
+  store.set("pav.cfg", cfg);
+  if (current) loadDeps();
+});
+
+// arranque: se o URL tiver uma paragem favorita, abre-a
+renderFavs();
+const startKey = decodeURIComponent(location.hash.slice(1));
+const startFav = startKey && favs.find((f) => f.key === startKey);
+history.replaceState(null, "", location.pathname + location.search);
+if (startFav) openStop(startFav);
+</script>
+</body>
+</html>
